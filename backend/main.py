@@ -1,3 +1,14 @@
+import sys
+import io
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
 from fastapi import FastAPI, Depends, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -43,7 +54,7 @@ def process_video_task(url: str):
     start_time = time.time()
     try:
         print(f"\n==========================================", flush=True)
-        print(f"▶ Starting analysis for: {url}", flush=True)
+        print(f"[>] Starting analysis for: {url}", flush=True)
         
         # Step 1: Download & Extract
         print("[1/4] Downloading video & extracting audio...", flush=True)
@@ -110,7 +121,7 @@ def process_video_task(url: str):
         
         db.commit()
         elapsed = round(time.time() - start_time, 1)
-        print(f"✔ Analysis finished successfully in {elapsed}s! Saved to database.", flush=True)
+        print(f"[SUCCESS] Analysis finished successfully in {elapsed}s! Saved to database.", flush=True)
         print(f"==========================================\n", flush=True)
         
         # Cleanup temporary files
@@ -120,7 +131,9 @@ def process_video_task(url: str):
             os.remove(media_info["audio_path"])
             
     except Exception as e:
-        print(f"\n✖ Error processing video: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        print(f"\n[ERROR] Error processing video: {e}", flush=True)
     finally:
         db.close()
 
@@ -205,7 +218,7 @@ def toggle_thermal_spike(request: SpikeSimulationRequest):
     """
     thermal_agent.sensor.toggle_simulated_spike(request.simulate)
     return {
-        "message": f"Thermal spike simulation {'enabled (82.5°C)' if request.simulate else 'disabled (normal sensor readings)'}",
+        "message": f"Thermal spike simulation {'enabled (82.5 C)' if request.simulate else 'disabled (normal sensor readings)'}",
         "simulated": request.simulate
     }
 

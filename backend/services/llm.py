@@ -19,7 +19,7 @@ def get_model_name() -> str:
     model = decision["selected_model"]
     temp = decision["telemetry"]["primary_temp_c"]
     risk = decision["telemetry"]["throttling_risk"]
-    print(f"[Thermal RL Governor] Hardware Temp: {temp}°C | Status: {risk} | Dispatched: {model} ({decision['model_tier']})", flush=True)
+    print(f"[Thermal RL Governor] Hardware Temp: {temp} C | Status: {risk} | Dispatched: {model} ({decision['model_tier']})", flush=True)
     return model
 
 def _extract_text_content(message) -> str:
