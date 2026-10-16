@@ -1,0 +1,108 @@
+# ==========================================
+# Python & Virtual Environments
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==========================================
+# Node.js & Frontend Build Outputs
+# ==========================================
+node_modules/
+frontend/node_modules/
+dist/
+dist-ssr/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# Databases & Local SQLite Storage
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+sql_app.db
+backend/sql_app.db
+database.db
+backend/database.db
+
+# ==========================================
+# Environment Variables & Sensitive Configs
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.local
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# ==========================================
+# Temporary Media, Transcripts, Slides & Caches
+# ==========================================
+temp/
+backend/temp/
+*.wav
+*.mp3
+*.mp4
+*.webm
+*.mkv
+*.avi
+*.flv
+*.pdf
+temp_frame_*.jpg
+*.log
+
+# ==========================================
+# Model Weights & Vector Caches
+# ==========================================
+models_cache/
+.cache/
+
+# ==========================================
+# IDE, Editor & OS Artifacts
+# ==========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
