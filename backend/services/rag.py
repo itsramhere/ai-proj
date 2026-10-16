@@ -52,13 +52,24 @@ class RAGStore:
         prompt = f"Answer the user question based on the following context:\n\n{context}\n\nQuestion: {question}\nAnswer:"
         
         model = get_model_name()
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "You answer questions accurately based only on the provided context."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3
-        )
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "You answer questions accurately based only on the provided context."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
+        except Exception as e:
+            print(f"[RAG Fallback] Query with {model} failed ({e}), falling back to qwen2.5-3b-instruct", flush=True)
+            response = client.chat.completions.create(
+                model="qwen2.5-3b-instruct",
+                messages=[
+                    {"role": "system", "content": "You answer questions accurately based only on the provided context."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
         
         return _extract_text_content(response.choices[0].message)

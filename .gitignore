@@ -86,6 +86,8 @@ backend/temp/
 *.avi
 *.flv
 *.pdf
+screenshots/
+frontend/screenshots/
 temp_frame_*.jpg
 *.log
 

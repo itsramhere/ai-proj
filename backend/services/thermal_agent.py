@@ -216,8 +216,19 @@ class ThermalRLAgent:
             selected_model = self.full_model
             model_tier = "FULL_PRECISION (Qwen 3B)"
         else:
-            selected_model = self.quantized_model
             model_tier = "QUANTIZED_COMPACT (Qwen 0.5B)"
+            selected_model = self.quantized_model
+            # Verify if quantized_model is actually loaded/available in LM Studio
+            try:
+                import urllib.request
+                req = urllib.request.Request("http://localhost:1234/v1/models")
+                with urllib.request.urlopen(req, timeout=0.5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    available = [m.get("id") for m in data.get("data", [])]
+                    if self.quantized_model not in available:
+                        selected_model = self.full_model
+            except Exception:
+                selected_model = self.full_model
 
         # Calculate reward: high accuracy reward minus thermal penalty
         if state_idx == 2 and chosen_action == 0:
