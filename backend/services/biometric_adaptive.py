@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 from typing import Dict, Any, List
 
+from services.webcam_ppg import webcam_ppg
+
 class BiometricLSTM(nn.Module):
     """
     Bidirectional LSTM network that processes sequential biometric telemetry
@@ -40,17 +42,22 @@ class BiometricAdaptiveEngine:
     Option #3 Engine:
     Couples practice question paper difficulty to real-time biometric telemetry
     (Photoplethysmogram / PPG heart rate, Galvanic Skin Response / GSR, and EEG brainwaves).
-    
-    Processes the raw sensor buffer with a PyTorch LSTM network, predicts mental fatigue /
-    stress states, and dynamically adapts question paper difficulty (Beginner, Intermediate, Advanced)
-    and pacing in real time without requiring additional physical hardware.
+
+    In LIVE mode the heart-rate channel is measured for real from the webcam via
+    rPPG (services/webcam_ppg.py); GSR and EEG remain emulated because standard
+    laptops carry no such sensors, and the telemetry labels every channel with
+    its actual source. The sensor buffer is processed by a PyTorch LSTM network
+    and the engine dynamically adapts question paper difficulty (Beginner,
+    Intermediate, Advanced) in real time.
     """
     def __init__(self):
         self.model = BiometricLSTM()
         self.model.eval()
         
         # State & baseline variables
-        self.simulated_state = "NORMAL"  # "LOW_STRESS", "NORMAL", "HIGH_STRESS"
+        # "LIVE" = real webcam heart rate when available; the other three are
+        # full sensor-emulation demo states set via /system/biometrics/simulate.
+        self.simulated_state = "LIVE"
         self.current_difficulty = "medium"
         self.heart_rate = 72.0
         self.gsr_conductance = 3.5  # microsiemens (uS)
@@ -59,23 +66,27 @@ class BiometricAdaptiveEngine:
         self.theta_ratio = 0.5      # EEG Theta (drowsiness/fatigue)
 
     def set_simulation_state(self, state: str):
-        valid = ["LOW_STRESS", "NORMAL", "HIGH_STRESS"]
+        valid = ["LIVE", "LOW_STRESS", "NORMAL", "HIGH_STRESS"]
         if state in valid:
             self.simulated_state = state
 
-    def generate_sensor_stream(self, seq_len: int = 10) -> torch.Tensor:
+    def generate_sensor_stream(self, seq_len: int = 10, hr_override: float | None = None) -> torch.Tensor:
         """
-        Synthesizes / reads sensor streaming buffer of shape [1, seq_len, 5]:
+        Synthesizes the sensor streaming buffer of shape [1, seq_len, 5]:
         Features: [PPG_HeartRate_Norm, GSR_Norm, EEG_Alpha, EEG_Beta, EEG_Theta]
+
+        hr_override: a real webcam rPPG heart-rate reading, when available,
+        replaces the synthetic HR base (GSR/EEG features remain emulated).
         """
-        # Baseline adjustments depending on state
-        if self.simulated_state == "HIGH_STRESS":
+        # Baseline adjustments depending on state ("LIVE" uses normal baselines)
+        state = self.simulated_state if self.simulated_state != "LIVE" else "NORMAL"
+        if state == "HIGH_STRESS":
             hr_base = 105.0 + random.uniform(-4, 6)
             gsr_base = 9.2 + random.uniform(-0.5, 0.8)
             alpha_base = 0.45 + random.uniform(-0.05, 0.05)
             beta_base = 2.1 + random.uniform(-0.1, 0.2)
             theta_base = 0.3 + random.uniform(-0.05, 0.05)
-        elif self.simulated_state == "LOW_STRESS":
+        elif state == "LOW_STRESS":
             hr_base = 62.0 + random.uniform(-2, 3)
             gsr_base = 1.8 + random.uniform(-0.2, 0.3)
             alpha_base = 2.3 + random.uniform(-0.1, 0.2)
@@ -87,6 +98,9 @@ class BiometricAdaptiveEngine:
             alpha_base = 1.1 + random.uniform(-0.08, 0.08)
             beta_base = 0.9 + random.uniform(-0.08, 0.08)
             theta_base = 0.5 + random.uniform(-0.05, 0.05)
+
+        if hr_override is not None:
+            hr_base = float(hr_override)
 
         self.heart_rate = round(hr_base, 1)
         self.gsr_conductance = round(gsr_base, 2)
@@ -112,9 +126,18 @@ class BiometricAdaptiveEngine:
         """
         Runs the PyTorch LSTM on the biometric sequence buffer to determine
         the student's real-time physical stress & cognitive load states.
+
+        In LIVE mode the webcam rPPG reader is consulted for a real heart-rate
+        reading; if it is unavailable (no camera, disabled, warming up, low
+        confidence) the emulated stream is used instead and reported as such.
         """
+        webcam_ppg.auto_start()
+        ppg = webcam_ppg.reading()
+        real_hr = ppg["bpm"] if (self.simulated_state == "LIVE" and ppg["usable"]) else None
+        heart_rate_source = "webcam_rppg" if real_hr is not None else "emulated"
+
         with torch.no_grad():
-            x = self.generate_sensor_stream(seq_len=12)
+            x = self.generate_sensor_stream(seq_len=12, hr_override=real_hr)
             preds = self.model(x).squeeze(0)
             raw_cognitive = float(preds[0].item())
             raw_stress = float(preds[1].item())
@@ -155,6 +178,15 @@ class BiometricAdaptiveEngine:
             "recommended_difficulty": target_difficulty,
             "adaptation_action": adaptation_action,
             "simulated_state": self.simulated_state,
+            "heart_rate_source": heart_rate_source,
+            "ppg_state": ppg["state"],
+            "ppg_confidence": ppg["confidence"],
+            "ppg_fps": ppg["fps"],
+            "sensor_sources": {
+                "heart_rate": heart_rate_source,
+                "gsr": "emulated",
+                "eeg": "emulated"
+            },
             "timestamp": time.time()
         }
 

@@ -264,9 +264,13 @@ def toggle_power_simulation(request: PowerSimulationRequest):
     }
 
 from services.biometric_adaptive import biometric_engine
+from services.webcam_ppg import webcam_ppg
 
 class BiometricSimulationRequest(BaseModel):
-    state: str # "LOW_STRESS", "NORMAL", "HIGH_STRESS"
+    state: str # "LIVE", "LOW_STRESS", "NORMAL", "HIGH_STRESS"
+
+class BiometricCameraRequest(BaseModel):
+    enabled: bool
 
 class RegenerateQuizRequest(BaseModel):
     difficulty: str | None = None # "easy", "medium", "hard" or None (auto-detect from biometrics)
@@ -274,16 +278,35 @@ class RegenerateQuizRequest(BaseModel):
 @app.get("/system/biometrics")
 def get_biometric_telemetry():
     """
-    Returns real-time biometric telemetry (PPG heart rate, GSR skin conductance,
-    EEG Alpha/Beta/Theta power ratios) evaluated via PyTorch LSTM.
+    Returns real-time biometric telemetry. Heart rate is measured live from the
+    webcam via rPPG when available (emulated fallback otherwise); GSR and EEG
+    channels are emulated and labelled as such in sensor_sources.
     """
     return biometric_engine.evaluate_biometrics()
+
+@app.post("/system/biometrics/camera")
+def set_biometric_camera(request: BiometricCameraRequest):
+    """
+    Enables/disables the webcam rPPG heart-rate reader. Frames are processed
+    in memory only (per-frame face-region colour averages) and never stored.
+    """
+    if request.enabled:
+        webcam_ppg.enable()
+        message = "Webcam rPPG reader enabled - allow a few seconds to warm up"
+    else:
+        webcam_ppg.disable()
+        message = "Webcam rPPG reader disabled - emulated heart rate active"
+    return {
+        "message": message,
+        "ppg": webcam_ppg.reading()
+    }
 
 @app.post("/system/biometrics/simulate")
 def set_biometric_simulation(request: BiometricSimulationRequest):
     """
-    Simulates physical biometric states (LOW_STRESS / NORMAL / HIGH_STRESS)
-    to test dynamic question paper adaptation without physical wearable sensors.
+    Switches the biometric sensor mode. "LIVE" uses the real webcam heart-rate
+    reading; LOW_STRESS / NORMAL / HIGH_STRESS are full sensor-emulation demo
+    states for testing dynamic question paper adaptation without wearables.
     """
     biometric_engine.set_simulation_state(request.state)
     return {

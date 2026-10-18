@@ -57,11 +57,28 @@ export default function QuizView() {
   const handleSimulateState = async (state) => {
     try {
       await api.post("/system/biometrics/simulate", { state });
-      showToast(`Biometric sensor state simulated: ${state}`, "info");
+      showToast(`Biometric sensor mode switched to: ${state}`, "info");
       await fetchBiometrics();
     } catch (err) {
-      console.error("Failed to simulate state:", err);
-      showToast("Failed to simulate biometric sensor.", "error");
+      console.error("Failed to switch sensor mode:", err);
+      showToast("Failed to switch biometric sensor mode.", "error");
+    }
+  };
+
+  const handleToggleCamera = async () => {
+    const targetEnabled = biometrics?.ppg_state === "disabled";
+    try {
+      await api.post("/system/biometrics/camera", { enabled: targetEnabled });
+      showToast(
+        targetEnabled
+          ? "Webcam rPPG reader enabled - allow a few seconds to warm up"
+          : "Webcam rPPG reader disabled - emulated heart rate active",
+        "info"
+      );
+      await fetchBiometrics();
+    } catch (err) {
+      console.error("Failed to toggle webcam reader:", err);
+      showToast("Failed to toggle webcam rPPG reader.", "error");
     }
   };
 
@@ -141,6 +158,11 @@ export default function QuizView() {
   const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
   const isHighStress = biometrics?.stress_index_pct > 65;
   const isLowStress = biometrics?.stress_index_pct < 35;
+  const ppgLive = biometrics?.heart_rate_source === "webcam_rppg";
+  const ppgState = biometrics?.ppg_state;
+  const ppgWarming = ppgState === "starting" || ppgState === "warming_up";
+  const cameraUnavailable = ppgState === "no_camera";
+  const cameraOff = ppgState === "disabled";
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
@@ -210,7 +232,7 @@ export default function QuizView() {
               </div>
 
               <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
-                PyTorch LSTM model evaluates streaming PPG (heart rate), GSR (skin conductance), and EEG spectral waves to dynamically adapt question paper difficulty.
+                Streaming PPG (heart rate), GSR (skin conductance), and EEG spectral waves steer question paper difficulty. Heart rate is measured live from the webcam via rPPG in Live mode; GSR and EEG channels come from the built-in sensor emulator.
               </p>
 
               {/* Stress Gauge Bar */}
@@ -238,6 +260,20 @@ export default function QuizView() {
                   variant="danger"
                   size="sm"
                 />
+                <Badge
+                  variant={ppgLive ? "success" : ppgWarming ? "info" : "neutral"}
+                  size="xs"
+                  dot
+                  pulse={ppgLive}
+                >
+                  {ppgLive
+                    ? "LIVE WEBCAM"
+                    : ppgWarming
+                    ? "CAMERA WARMING UP"
+                    : ppgState === "no_face"
+                    ? "NO FACE DETECTED"
+                    : "EMULATED"}
+                </Badge>
                 <MetricChip
                   label="GSR"
                   value={biometrics.gsr_microsiemens ?? "--"}
@@ -253,9 +289,17 @@ export default function QuizView() {
                 />
               </div>
 
-              {/* Sensor State Simulator Buttons */}
+              {/* Sensor Mode & Camera Controls */}
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                <span className="text-[11px] text-slate-400 font-medium mr-1">Simulate:</span>
+                <span className="text-[11px] text-slate-400 font-medium mr-1">Sensors:</span>
+                <Button
+                  variant={biometrics.simulated_state === "LIVE" ? "success" : "secondary"}
+                  size="xs"
+                  onClick={() => handleSimulateState("LIVE")}
+                  title="Use the real webcam heart-rate reading (GSR/EEG remain emulated)"
+                >
+                  📷 Live
+                </Button>
                 <Button
                   variant={biometrics.simulated_state === "LOW_STRESS" ? "success" : "secondary"}
                   size="xs"
@@ -276,6 +320,16 @@ export default function QuizView() {
                   onClick={() => handleSimulateState("HIGH_STRESS")}
                 >
                   😰 High Stress
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={handleToggleCamera}
+                  disabled={cameraUnavailable}
+                  title="Webcam rPPG reader switch — frames are processed in memory and never stored"
+                >
+                  {cameraUnavailable ? "📷 No Camera" : cameraOff ? "📷 Camera Off" : "📷 Camera On"}
                 </Button>
 
                 <Button

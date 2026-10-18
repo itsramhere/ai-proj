@@ -44,8 +44,9 @@ In addition to core study material synthesis, the suite incorporates **Edge Hard
 - Computes perceptual frame hashes (pHash) and SSIM metrics to detect slide advances in real-time, eliminating redundant frames while streaming captured keyframes into an interactive lightbox inspector.
 
 ### 4. Biometric Cognitive Load Adaptive Quiz Engine (Option #3)
-- Integrates live biometric sensors (PPG heart rate, GSR skin conductance, and EEG $\alpha/\beta/\theta$ ratios) to calculate cognitive stress.
+- Measures heart rate live from the laptop webcam via remote photoplethysmography (rPPG); GSR skin conductance and EEG $\alpha/\beta/\theta$ ratios come from the built-in sensor emulator (standard laptops carry no such sensors).
 - Dynamically adapts quiz difficulty (Beginner Recall vs. Analytical Reasoning) based on the student's live cognitive load.
+- Camera frames are processed in memory only (face-region colour averages) and never stored; the reader can be switched off from the quiz view or via `POST /system/biometrics/camera`.
 
 ---
 
@@ -113,7 +114,8 @@ ai-proj/
 │   │   ├── power_governor.py         # Battery discharge & silicon core affinity governor
 │   │   ├── rag.py                    # FAISS vector store & transcript retrieval
 │   │   ├── thermal_agent.py          # ACPI Hardware sensor & Q-learning thermal governor
-│   │   └── transcription.py          # faster-whisper local ASR worker
+│   │   ├── transcription.py          # faster-whisper local ASR worker
+│   │   └── webcam_ppg.py             # Live webcam rPPG heart-rate reader (YuNet face lock)
 │   ├── database.py                   # SQLAlchemy connection & session manager
 │   ├── main.py                       # FastAPI application & background task router
 │   └── .env.example
@@ -237,7 +239,8 @@ Open your browser at **[http://localhost:5173](http://localhost:5173)**.
 | `GET` | `/system/power` | Live battery capacity, runtime estimate, and affinity mask |
 | `POST` | `/system/power/simulate-discharge` | Toggle simulated critical 14% battery state |
 | `GET` | `/system/framebuffer` | Smart-board frame grabber stream metrics & snapshots |
-| `GET` | `/system/biometrics` | Live PPG, GSR, and EEG student stress telemetry |
+| `GET` | `/system/biometrics` | Student stress telemetry (heart rate live via webcam rPPG; GSR/EEG emulated) |
+| `POST` | `/system/biometrics/camera` | Enable/disable the in-memory webcam rPPG reader |
 
 ---
 
