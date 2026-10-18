@@ -106,6 +106,13 @@ export default function PowerGovernor({ power, onRefresh }) {
           value={power.active_core_mask ? `${power.active_core_mask.length} Cores` : "All Cores"}
           variant="brand"
         />
+        {power.rl_policy_loaded && (
+          <MetricChip
+            label="RL Governor"
+            value={`Q-learning · ${power.rl_policy_states} states`}
+            variant="brand"
+          />
+        )}
       </div>
 
       {/* Action Button */}

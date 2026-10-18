@@ -65,9 +65,10 @@ def process_video_task(url: str):
         media_info = download_video_and_extract_audio(url)
         print(f"      Title: '{media_info['title']}' ({media_info['duration_sec']}s)", flush=True)
         
-        # Predictive Power-Gating Evaluation
+        # Predictive Power-Gating Evaluation (trained RL policy governs the decision)
         power_budget = power_governor.evaluate_video_execution_budget(media_info["duration_sec"])
         print(f"[Power Governor] Battery Mode: {power_budget['power_mode']} | Usable Energy: {power_budget['est_usable_sec']}s vs Needed: {power_budget['est_processing_sec']}s", flush=True)
+        print(f"[Power Governor] RL Decision: {power_budget['rl_decision'].upper()} (source: {power_budget['decision_source']} | battery: {power_budget['rl_battery_pct']}% | work left: {power_budget['rl_work_left_units']} units)", flush=True)
 
         # Step 2: Transcribe
         print("[2/4] Transcribing audio with Whisper ASR...", flush=True)
